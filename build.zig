@@ -104,15 +104,19 @@ pub fn build(b: *std.Build) !void {
     gmp.addCSourceFiles(.{
         .root = gmp_dep.path("mpz"),
         .files = &.{
-            "mul_2exp.c",
-            "clear.c",
-            "init.c",
-            "add_ui.c",
-            "realloc.c",
-            "tdiv_qr.c",
-            "set_ui.c",
-            "set_si.c",
-            "get_str.c",
+            "mul_2exp.c",    "clear.c",      "init.c",
+            "add_ui.c",      "realloc.c",    "tdiv_qr.c",
+            "set_ui.c",      "set_si.c",     "sub_ui.c",
+            "get_str.c",     "xor.c",        "tdiv_r_2exp.c",
+            "tdiv_q_2exp.c", "tdiv_q.c",     "tdiv_r.c",
+            "sub.c",         "sizeinbase.c", "size.c",
+            "set.c",         "scan0.c",      "scan1.c",
+            "pow_ui.c",      "neg.c",        "mul.c",
+            "ior.c",         "get_ui.c",     "get_si.c",
+            "get_d.c",       "gcd.c",        "cmp_ui.c",
+            "cmp_si.c",      "cmp.c",        "swap.c",
+            "n_pow_ui.c",    "get_d.c",      "popcount.c",
+            "add.c",         "abs.c",        "and.c",
         },
     });
     gmp.addCSourceFiles(.{
