@@ -5,12 +5,16 @@ pub fn build(b: *std.Build) !void {
     const optimize = b.standardOptimizeOption(.{});
 
     const gmp_dep = b.dependency("gmp", .{});
-    const gmp = b.addStaticLibrary(.{
+    const gmp = b.addLibrary(.{
         .name = "gmp",
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .target = target,
+            .optimize = optimize,
+            .link_libc = true,
+            .link_libcpp = true,
+        }),
+        .linkage = .static,
     });
-    b.installArtifact(gmp);
 
     const gmp_header = b.addConfigHeader(.{
         .style = .{ .cmake = gmp_dep.path("gmp-h.in") },
@@ -73,8 +77,6 @@ pub fn build(b: *std.Build) !void {
         "trialdivtab.h",
     );
 
-    gmp.linkLibC();
-    gmp.linkLibCpp();
     gmp.addIncludePath(gmp_dep.path("."));
 
     const config = makeConfigHeader(b, gmp_dep, target);
@@ -87,9 +89,12 @@ pub fn build(b: *std.Build) !void {
             "tal-reent.c",
             "memory.c",
             "errno.c",
+            "extract-dbl.c",
+            "invalid.c",
             "mp_minv_tab.c",
             "mp_dv_tab.c",
             "mp_clz_tab.c",
+            // TODO: figure out printing interface
             "printf/printf.c",
             "printf/doprnt.c",
             "printf/printffuns.c",
@@ -105,30 +110,19 @@ pub fn build(b: *std.Build) !void {
     gmp.addCSourceFiles(.{
         .root = gmp_dep.path("mpz"),
         .files = &.{
-            "mul_2exp.c",     "clear.c",      "init.c",
-            "add_ui.c",       "realloc.c",    "tdiv_qr.c",
-            "set_ui.c",       "set_si.c",     "sub_ui.c",
-            "get_str.c",      "xor.c",        "tdiv_r_2exp.c",
-            "tdiv_q_2exp.c",  "tdiv_q.c",     "tdiv_r.c",
-            "sub.c",          "sizeinbase.c", "size.c",
-            "set.c",          "scan0.c",      "scan1.c",
-            "pow_ui.c",       "neg.c",        "mul.c",
-            "ior.c",          "get_ui.c",     "get_si.c",
-            "get_d.c",        "gcd.c",        "cmp_ui.c",
-            "cmp_si.c",       "cmp.c",        "swap.c",
-            "n_pow_ui.c",     "get_d.c",      "popcount.c",
-            "mul_si.c",       "add.c",        "abs.c",
-            "and.c",          "iset_si.c",    "getlimbn.c",
-            "iset.c",         "mul_ui.c",     "fits_sint.c",
-            "set_ui.c",       "set_str.c",    "tdiv_q_ui.c",
-            "set_ui.c",       "fits_uint.c",  "cfdiv_r_2exp.c",
-            "cfdiv_q_2exp.c", "divexact.c",   "iset_str.c",
-            "iset_ui.c",
+            "init.c",    "init2.c",    "clear.c",
+            "realloc.c", "realloc2.c", "set.c",
+            "set_ui.c",  "set_si.c",   "set_d.c",
+            "set_q.c",   "set_f.c",    "set_str.c",
+            "swap.c",
+            //TODO: figure out printing interface
+               "out_str.c",  "get_str.c",
         },
     });
     gmp.addCSourceFiles(.{
         .root = gmp_dep.path("mpq"),
         .files = &.{
+            // TODO
             "set_si.c",
             "get_str.c",
         },
@@ -136,6 +130,7 @@ pub fn build(b: *std.Build) !void {
     gmp.addCSourceFiles(.{
         .root = gmp_dep.path("mpf"),
         .files = &.{
+            // TODO
             "set_si.c",
             "get_str.c",
         },
@@ -152,23 +147,6 @@ pub fn build(b: *std.Build) !void {
         ),
         "mp_bases.c",
     ) });
-
-    gmp.addCSourceFiles(.{
-        .root = gmp_dep.path("cxx"),
-        .files = &.{
-            "isfuns.cc",
-            "ismpf.cc",
-            "ismpq.cc",
-            "ismpz.cc",
-            "ismpznw.cc",
-            "limits.cc",
-            "osdoprnti.cc",
-            "osfuns.cc",
-            "osmpf.cc",
-            "osmpq.cc",
-            "osmpz.cc",
-        },
-    });
 
     gmp.addCSourceFiles(.{
         .root = gmp_dep.path("mpn/generic"),
@@ -334,6 +312,15 @@ pub fn build(b: *std.Build) !void {
             source,
         })));
     }
+
+    // Expose bindings
+    const lib = b.addModule("gmp", .{
+        .root_source_file = b.path("src/root.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    lib.addIncludePath(header_files.getDirectory());
+    lib.linkLibrary(gmp);
 }
 
 fn genTable(
@@ -348,8 +335,8 @@ fn genTable(
         .name = name,
         .target = b.graph.host,
         .optimize = .ReleaseSafe,
+        .link_libc = true,
     });
-    gen_fib.linkLibC();
     gen_fib.addCSourceFile(.{ .file = gmp_dep.path(b.fmt("{s}.c", .{name})) });
     const run_gen_fib = b.addRunArtifact(gen_fib);
     if (maybe_arg) |arg| run_gen_fib.addArg(arg);
@@ -808,7 +795,7 @@ fn makeConfigHeader(
         .@"volatile" = null,
     });
 
-    const entry = native_map.get(t.cpu.arch) orelse @panic("support arch");
+    const entry = native_map.get(t.cpu.arch) orelse @panic("TODO: support arch");
     config.addValues(entry);
 
     return config;
