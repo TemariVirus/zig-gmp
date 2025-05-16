@@ -110,18 +110,19 @@ pub fn build(b: *std.Build) !void {
     gmp.addCSourceFiles(.{
         .root = gmp_dep.path("mpz"),
         .files = &.{
-            "init.c",    "init2.c",     "clear.c",
-            "realloc.c", "realloc2.c",  "set.c",
-            "set_ui.c",  "set_si.c",    "set_d.c",
-            "set_q.c",   "set_f.c",     "set_str.c",
-            "swap.c",    "add.c",       "add_ui.c",
-            "sub.c",     "sub_ui.c",    "ui_sub.c",
-            "mul.c",     "mul_si.c",    "mul_ui.c",
-            "aorsmul.c", "aorsmul_i.c", "mul_2exp.c",
-            "neg.c",     "abs.c",
+            "init.c",     "init2.c",     "clear.c",
+            "realloc.c",  "realloc2.c",  "set.c",
+            "set_ui.c",   "set_si.c",    "set_d.c",
+            "set_q.c",    "set_f.c",     "set_str.c",
+            "swap.c",     "add.c",       "add_ui.c",
+            "sub.c",      "sub_ui.c",    "ui_sub.c",
+            "mul.c",      "mul_si.c",    "mul_ui.c",
+            "aorsmul.c",  "aorsmul_i.c", "mul_2exp.c",
+            "neg.c",      "abs.c",       "iset.c",
+            "iset_ui.c",  "iset_si.c",   "iset_d.c",
+            "iset_str.c",
             //TODO: figure out printing interface
-                  "out_str.c",
-            "get_str.c",
+            "out_str.c",   "get_str.c",
         },
     });
     gmp.addCSourceFiles(.{

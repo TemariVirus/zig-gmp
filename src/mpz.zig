@@ -15,17 +15,17 @@ pub const Mpz = extern struct {
     /// Allocates a new `Mpz` with its value set to 0. `deinit` must be called
     /// to free memory.
     pub fn init() Mpz {
-        var z: Mpz = undefined;
-        gmp.mpz_init(@ptrCast(&z));
-        return z;
+        var self: Mpz = undefined;
+        gmp.mpz_init(@ptrCast(&self));
+        return self;
     }
 
     /// Allocates a new `Mpz` with its value set to 0 and enough space for
     /// `bits`-bit numbers. `deinit` must be called to free memory.
     pub fn initCapacity(bits: BitCountInt) Mpz {
-        var z: Mpz = undefined;
-        gmp.mpz_init2(@ptrCast(&z), bits);
-        return z;
+        var self: Mpz = undefined;
+        gmp.mpz_init2(@ptrCast(&self), bits);
+        return self;
     }
 
     pub fn deinit(self: *Mpz) void {
@@ -62,12 +62,14 @@ pub const Mpz = extern struct {
         }
     }
 
+    pub const SetStrError = error{ InvalidBase, NotANumber };
+
     /// Set the value of `self` from `str`, a string in base `base`. White space is ignored.
     /// The base may vary from 2 to 62, or if base is `null`, then the leading characters are used:
     /// 0x and 0X for hexadecimal, 0b and 0B for binary, 0 for octal, or decimal otherwise.
     /// For bases up to 36, case is ignored; upper-case and lower-case letters have the same value.
     /// For bases 37 to 62, upper-case letters represent the usual 10..35 while lower-case letters represent 36..61.
-    pub fn setStr(self: *Mpz, str: []const u8, base: ?u6) error{ InvalidBase, NotANumber }!void {
+    pub fn setStr(self: *Mpz, str: []const u8, base: ?u6) SetStrError!void {
         if (base) |b| {
             if (b < 2 or b > 62) {
                 return error.InvalidBase;
@@ -83,6 +85,48 @@ pub const Mpz = extern struct {
     /// Swap the values `self` and `other` efficiently.
     pub fn swap(self: *Mpz, other: *Mpz) void {
         gmp.mpz_swap(@ptrCast(self), @ptrCast(other));
+    }
+
+    /// Allocates a new `Mpz` and set the initial numeric value from `op`.
+    /// Supported types: `int`, `float`, `Mpz`.
+    pub fn initSet(op: anytype) Mpz {
+        var self: Mpz = undefined;
+
+        const T = @TypeOf(op);
+        switch (@typeInfo(T)) {
+            .int => |info| switch (info.signedness) {
+                .signed => gmp.mpz_init_set_si(@ptrCast(&self), op),
+                .unsigned => gmp.mpz_init_set_ui(@ptrCast(&self), op),
+            },
+            .comptime_int => if (op < 0) {
+                gmp.mpz_init_set_si(@ptrCast(&self), op);
+            } else {
+                gmp.mpz_init_set_ui(@ptrCast(&self), op);
+            },
+            .float, .comptime_float => gmp.mpz_init_set_d(@ptrCast(&self), op),
+            else => switch (T) {
+                Mpz => gmp.mpz_init_set(@ptrCast(&self), @ptrCast(&op)),
+                else => @compileError(std.fmt.comptimePrint("Unsupported type '{s}'", .{@typeName(T)})),
+            },
+        }
+        return self;
+    }
+
+    /// Allocates a new `Mpz` and set its value like `setStr` (see its documentation for details).
+    pub fn initSetStr(str: []const u8, base: ?u6) SetStrError!Mpz {
+        if (base) |b| {
+            if (b < 2 or b > 62) {
+                return error.InvalidBase;
+            }
+        }
+
+        var self: Mpz = undefined;
+        errdefer self.deinit();
+        const result = gmp.mpz_init_set_str(@ptrCast(&self), @ptrCast(str), base orelse 0);
+        if (result != 0) {
+            return error.NotANumber;
+        }
+        return self;
     }
 
     /// Set `self` to `op1 + op2`.
