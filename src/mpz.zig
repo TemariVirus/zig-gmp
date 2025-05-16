@@ -38,23 +38,24 @@ pub const Mpz = extern struct {
         gmp.mpz_realloc2(@ptrCast(self), bits);
     }
 
-    /// Set the value of `self` to `value`.
+    /// Set the value of `self` to `op`.
     /// Supported types: `int`, `float`, `Mpz`, `Mpq`, `Mpf`.
-    pub fn set(self: *Mpz, value: anytype) void {
-        const T = @TypeOf(value);
+    /// If `op` is `float`, `Mpq` or `Mpf`, `op` is truncated to make it an integer.
+    pub fn set(self: *Mpz, op: anytype) void {
+        const T = @TypeOf(op);
         switch (@typeInfo(T)) {
             .int => |info| switch (info.signedness) {
-                .signed => gmp.mpz_set_si(@ptrCast(self), value),
-                .unsigned => gmp.mpz_set_ui(@ptrCast(self), value),
+                .signed => gmp.mpz_set_si(@ptrCast(self), op),
+                .unsigned => gmp.mpz_set_ui(@ptrCast(self), op),
             },
-            .comptime_int => if (value < 0) {
-                gmp.mpz_set_si(@ptrCast(self), value);
+            .comptime_int => if (op < 0) {
+                gmp.mpz_set_si(@ptrCast(self), op);
             } else {
-                gmp.mpz_set_ui(@ptrCast(self), value);
+                gmp.mpz_set_ui(@ptrCast(self), op);
             },
-            .float, .comptime_float => gmp.mpz_set_d(@ptrCast(self), value),
+            .float, .comptime_float => gmp.mpz_set_d(@ptrCast(self), op),
             else => switch (T) {
-                Mpz => gmp.mpz_set(@ptrCast(self), @ptrCast(&value)),
+                Mpz => gmp.mpz_set(@ptrCast(self), @ptrCast(&op)),
                 // TODO: support rational and float types
                 else => @compileError(std.fmt.comptimePrint("Unsupported type '{s}'", .{@typeName(T)})),
             },
@@ -121,7 +122,7 @@ pub const Mpz = extern struct {
         }
     }
 
-    /// Set `self` to `op1 * op2`.
+    /// Set `self` to `op1 times op2`.
     /// Supported types: `int`, `Mpz`.
     pub fn mul(self: *Mpz, op1: Mpz, op2: anytype) void {
         const T = @TypeOf(op2);
@@ -139,7 +140,7 @@ pub const Mpz = extern struct {
         }
     }
 
-    /// Set `self` to `self + (op1 * op2)`.
+    /// Set `self` to `self + (op1 times op2)`.
     /// Supported types: `unsigned int`, `Mpz`.
     pub fn addMul(self: *Mpz, op1: Mpz, op2: anytype) void {
         const T = @TypeOf(op2);
@@ -153,7 +154,7 @@ pub const Mpz = extern struct {
         }
     }
 
-    /// Set `self` to `self - (op1 * op2)`.
+    /// Set `self` to `self - (op1 times op2)`.
     /// Supported types: `unsigned int`, `Mpz`.
     pub fn subMul(self: *Mpz, op1: Mpz, op2: anytype) void {
         const T = @TypeOf(op2);
@@ -167,7 +168,7 @@ pub const Mpz = extern struct {
         }
     }
 
-    /// Set `self` to `op1 * (2 ^ op2)`. This operation can also be defined as a left shift by `op2` bits.
+    /// Set `self` to `op1 times (2 raised to op2)`. This operation can also be defined as a left shift by `op2` bits.
     pub fn mul2exp(self: *Mpz, op1: Mpz, op2: BitCountInt) void {
         gmp.mpz_mul_2exp(@ptrCast(self), @ptrCast(&op1), op2);
     }
