@@ -1,7 +1,6 @@
-### zig-gmp
+### zig-gmp-bindings
 
-
-This library provides a wrapper around libgmp for use in the Zig build system.
+This library provides Zig bindings for libgmp.
 
 Zig version required: 0.14.0
 
