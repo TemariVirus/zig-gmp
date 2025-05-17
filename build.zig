@@ -341,6 +341,14 @@ pub fn build(b: *std.Build) !void {
     });
     lib.addIncludePath(header_files.getDirectory());
     lib.linkLibrary(gmp);
+
+    // Tests
+    const tests = b.addTest(.{
+        .root_module = lib,
+    });
+    const run_tests = b.addRunArtifact(tests);
+    const test_step = b.step("test", "Run tests");
+    test_step.dependOn(&run_tests.step);
 }
 
 fn genTable(

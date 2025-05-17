@@ -682,3 +682,183 @@ pub const Mpz = extern struct {
         };
     }
 };
+
+const root = @import("./root.zig");
+const testing = std.testing;
+
+test "Initialization Functions" {
+    root.setAllocator(testing.allocator);
+    {
+        var z: Mpz = .init();
+        defer z.deinit();
+        z.resize(100);
+    }
+    {
+        var z: Mpz = .initCapacity(1);
+        defer z.deinit();
+    }
+}
+
+test "Assignment Functions" {
+    root.setAllocator(testing.allocator);
+
+    var z: Mpz = .init();
+    defer z.deinit();
+
+    var z2: Mpz = .init();
+    defer z2.deinit();
+
+    z.set(1);
+    z.set(@as(c_ulong, 1));
+    z.set(-1);
+    z.set(-1.3);
+    z.set(@as(f64, 123.52));
+    z.set(z2);
+    // TODO: test Mpq and Mpf values
+
+    try z.setStr("1234", null);
+    try z.setStr("1234abcd", 14);
+    try testing.expectError(Mpz.SetStrError.NotANumber, z.setStr("789", 8));
+
+    z.swap(&z2);
+}
+
+test "Combined Initialization and Assignment Functions" {
+    root.setAllocator(testing.allocator);
+
+    Mpz.deinit(@constCast(&Mpz.initSet(1)));
+    Mpz.deinit(@constCast(&Mpz.initSet(@as(c_ulong, 1))));
+    Mpz.deinit(@constCast(&Mpz.initSet(-1)));
+    Mpz.deinit(@constCast(&Mpz.initSet(-1.3)));
+    var z = Mpz.initSet(@as(f64, 123.52));
+    defer z.deinit();
+    Mpz.deinit(@constCast(&Mpz.initSet(z)));
+
+    Mpz.deinit(@constCast(&try Mpz.initSetStr("1234", null)));
+    Mpz.deinit(@constCast(&try Mpz.initSetStr("1234abcd", 14)));
+}
+
+test "Arithmetic Functions" {
+    root.setAllocator(testing.allocator);
+
+    var z: Mpz = .initSet(123);
+    defer z.deinit();
+    var z2: Mpz = .init();
+    defer z2.deinit();
+    var z3: Mpz = .init();
+    defer z3.deinit();
+
+    z3.add(z, 1);
+    z3.add(z2, @as(c_ulong, 3));
+    z3.add(z, z2);
+
+    z3.sub(z, 1);
+    z3.sub(2, z);
+    z3.sub(z, @as(c_ulong, 3));
+    z3.sub(z, z2);
+
+    z3.mul(z, 2);
+    z3.mul(z, -2);
+    z3.mul(z, @as(c_ulong, 3));
+    z3.mul(z, z);
+
+    z3.addMul(z, 2);
+    z3.addMul(z, @as(c_ulong, 1));
+    z3.addMul(z, z2);
+
+    z3.subMul(z, 2);
+    z3.subMul(z, @as(c_ulong, 1));
+    z3.subMul(z, z2);
+
+    z3.mul2exp(z, 0);
+    z3.mul2exp(z, 3);
+
+    z3.neg(z);
+
+    z3.abs(z2);
+}
+
+test "Division Functions" {
+    root.setAllocator(testing.allocator);
+
+    var z: Mpz = .initSet(1);
+    defer z.deinit();
+    var z2: Mpz = .initSet(1);
+    defer z2.deinit();
+    var z3: Mpz = .init();
+    defer z3.deinit();
+
+    try z3.divCeilQ(z, z2);
+    try z3.divCeilR(z, z2);
+    try Mpz.divCeilQR(&z2, &z3, z, z);
+
+    _ = try z3.divCeilQUlong(z, 2);
+    _ = try z3.divCeilRUlong(z, 2);
+    _ = try Mpz.divCeilQRUlong(&z2, &z3, z, 1);
+    _ = try z3.divCeilUlong(4);
+
+    z3.divFloorQ2exp(z2, 1);
+    z3.divFloorR2exp(z2, 1);
+
+    try z3.divFloorQ(z, z2);
+    try z3.divFloorR(z, z2);
+    try Mpz.divFloorQR(&z2, &z3, z, z);
+
+    _ = try z3.divFloorQUlong(z, 2);
+    _ = try z3.divFloorRUlong(z, 2);
+    _ = try Mpz.divFloorQRUlong(&z2, &z3, z, 1);
+    _ = try z3.divFloorUlong(4);
+
+    z3.divFloorQ2exp(z2, 1);
+    z3.divFloorR2exp(z2, 1);
+
+    try z3.divTruncQ(z, z2);
+    try z3.divTruncR(z, z2);
+    try Mpz.divTruncQR(&z2, &z3, z, z);
+
+    _ = try z3.divTruncQUlong(z, 2);
+    _ = try z3.divTruncRUlong(z, 2);
+    _ = try Mpz.divTruncQRUlong(&z2, &z3, z, 1);
+    _ = try z3.divTruncUlong(4);
+
+    z3.divTruncQ2exp(z2, 1);
+    z3.divTruncR2exp(z2, 1);
+
+    try z3.mod(z2, z);
+    _ = try z3.modUlong(z2, 3);
+
+    try z3.divExact(z2, z);
+    _ = try z3.divExactUlong(z2, 3);
+
+    _ = z.isDivisible(z2);
+    _ = z.isDivisibleUlong(0);
+    _ = z.isDivisibleUlong(123);
+    _ = z.isDivisible2exp(123);
+
+    _ = z.isCongruent(z3, z2);
+    _ = z.isCongruentUlong(321, 0);
+    _ = z.isCongruentUlong(321, 123);
+    _ = z.isCongruent2exp(z3, 123);
+}
+
+test "Comparison Functions" {
+    root.setAllocator(testing.allocator);
+
+    var z: Mpz = .initSet(1);
+    defer z.deinit();
+    var z2: Mpz = .init();
+    defer z2.deinit();
+
+    _ = z.order(2);
+    _ = z.order(-2);
+    _ = z.order(@as(c_ulong, 3));
+    _ = z.order(1.2);
+    _ = z.order(z2);
+
+    _ = z.orderAbs(2);
+    _ = z.orderAbs(@as(c_ulong, 3));
+    _ = z.orderAbs(1.2);
+    _ = z.orderAbs(z2);
+
+    _ = z2.sign();
+}

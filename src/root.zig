@@ -42,3 +42,7 @@ fn gmpFree(ptr: ?*anyopaque, size: usize) callconv(.c) void {
     const memory = @as([*]u8, @ptrCast(ptr.?))[0..size];
     gmp_allocator.free(memory);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}
