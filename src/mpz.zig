@@ -129,6 +129,8 @@ pub const Mpz = extern struct {
         return self;
     }
 
+    // TODO: Conversion functions
+
     /// Set `self` to `op1 + op2`.
     /// Supported types: `unsigned int`, `Mpz`.
     pub fn add(self: *Mpz, op1: Mpz, op2: anytype) void {
@@ -225,5 +227,390 @@ pub const Mpz = extern struct {
     /// Set `self` to the absolute value of `op`.
     pub fn abs(self: *Mpz, op: Mpz) void {
         gmp.mpz_abs(@ptrCast(self), @ptrCast(&op));
+    }
+
+    fn isZero(self: Mpz) bool {
+        // "Zero is represented by _mp_size set to zero"
+        return self._mp_size == 0;
+    }
+
+    /// Divide `n` by `d`, forming a quotient `q`. Rounds `q` up towards +infinity.
+    pub fn divCeilQ(q: *Mpz, n: Mpz, d: Mpz) error{DivisionByZero}!void {
+        if (d.isZero()) {
+            @branchHint(.cold);
+            return error.DivisionByZero;
+        }
+        gmp.mpz_cdiv_q(@ptrCast(q), @ptrCast(&n), @ptrCast(&d));
+    }
+
+    /// Divide `n` by `d`, forming a quotient `q` and remainder `r`.
+    /// Rounds `q` up towards +infinity, and `r` will have the opposite sign to `d`.
+    /// `q` and `r` will satisfy `n=q*d+r`, and `r` will satisfy `0<=abs(r)<abs(d)`.
+    pub fn divCeilR(r: *Mpz, n: Mpz, d: Mpz) error{DivisionByZero}!void {
+        if (d.isZero()) {
+            @branchHint(.cold);
+            return error.DivisionByZero;
+        }
+        gmp.mpz_cdiv_r(@ptrCast(r), @ptrCast(&n), @ptrCast(&d));
+    }
+
+    /// Divide `n` by `d`, forming a quotient `q` and remainder `r`.
+    /// Rounds `q` up towards +infinity, and `r` will have the opposite sign to `d`.
+    /// `q` and `r` will satisfy `n=q*d+r`, and `r` will satisfy `0<=abs(r)<abs(d)`.
+    /// The same variable cannot be passed for both `q` and `r`, or results will be unpredictable.
+    pub fn divCeilQR(q: *Mpz, r: *Mpz, n: Mpz, d: Mpz) error{DivisionByZero}!void {
+        if (d.isZero()) {
+            @branchHint(.cold);
+            return error.DivisionByZero;
+        }
+        gmp.mpz_cdiv_qr(@ptrCast(q), @ptrCast(r), @ptrCast(&n), @ptrCast(&d));
+    }
+
+    /// Divide `n` by `d`, forming a quotient `q` and remainder `r`.
+    /// Rounds `q` up towards +infinity, and `r` will have the opposite sign to `d`.
+    /// `q` and `r` will satisfy `n=q*d+r`, and `r` will satisfy `0<=abs(r)<abs(d)`.
+    /// The return value is the absolute value of the remainder.
+    pub fn divCeilQUlong(q: *Mpz, n: Mpz, d: c_ulong) error{DivisionByZero}!c_ulong {
+        if (d == 0) {
+            @branchHint(.cold);
+            return error.DivisionByZero;
+        }
+        return gmp.mpz_cdiv_q_ui(@ptrCast(q), @ptrCast(&n), d);
+    }
+
+    /// Divide `n` by `d`, forming a quotient `q` and remainder `r`.
+    /// Rounds `q` up towards +infinity, and `r` will have the opposite sign to `d`.
+    /// `q` and `r` will satisfy `n=q*d+r`, and `r` will satisfy `0<=abs(r)<abs(d)`.
+    /// The return value is the absolute value of the remainder.
+    pub fn divCeilRUlong(r: *Mpz, n: Mpz, d: c_ulong) error{DivisionByZero}!c_ulong {
+        if (d == 0) {
+            @branchHint(.cold);
+            return error.DivisionByZero;
+        }
+        return gmp.mpz_cdiv_r_ui(@ptrCast(r), @ptrCast(&n), d);
+    }
+
+    /// Divide `n` by `d`, forming a quotient `q` and remainder `r`.
+    /// Rounds `q` up towards +infinity, and `r` will have the opposite sign to `d`.
+    /// `q` and `r` will satisfy `n=q*d+r`, and `r` will satisfy `0<=abs(r)<abs(d)`.
+    /// The same variable cannot be passed for both `q` and `r`, or results will be unpredictable.
+    /// The return value is the absolute value of the remainder.
+    pub fn divCeilQRUlong(q: *Mpz, r: *Mpz, n: Mpz, d: c_ulong) error{DivisionByZero}!c_ulong {
+        if (d == 0) {
+            @branchHint(.cold);
+            return error.DivisionByZero;
+        }
+        return gmp.mpz_cdiv_qr_ui(@ptrCast(q), @ptrCast(r), @ptrCast(&n), d);
+    }
+
+    //// Divide `n` by `d`, forming a quotient `q` and remainder `r`.
+    /// Rounds `q` up towards +infinity, and `r` will have the opposite sign to `d`.
+    /// `q` and `r` will satisfy `n=q*d+r`, and `r` will satisfy `0<=abs(r)<abs(d)`.
+    /// The return value is the absolute value of the remainder.
+    pub fn divCeilUlong(n: Mpz, d: c_ulong) error{DivisionByZero}!c_ulong {
+        if (d == 0) {
+            @branchHint(.cold);
+            return error.DivisionByZero;
+        }
+        return gmp.mpz_cdiv_ui(@ptrCast(&n), d);
+    }
+
+    /// Divide `n` by `2^b`, forming a quotient `q`. Rounds `q` up towards +infinity.
+    /// This function is implemented as a right shift.
+    pub fn divCeilQ2exp(q: *Mpz, n: Mpz, b: BitCountInt) void {
+        gmp.mpz_cdiv_q_2exp(@ptrCast(q), @ptrCast(&n), b);
+    }
+
+    /// Divide `n` by `2^b`, forming a quotient `q` and remainder `r`.
+    /// Rounds `q` up towards +infinity, and `r` will have the opposite sign to `2^b`.
+    /// `q` and `r` will satisfy `n=q*(2^b)+r`, and `r` will satisfy `0<=abs(r)<abs(2^b)`.
+    /// This function is implemented as a bit mask.
+    pub fn divCeilR2exp(q: *Mpz, n: Mpz, b: BitCountInt) void {
+        gmp.mpz_cdiv_r_2exp(@ptrCast(q), @ptrCast(&n), b);
+    }
+
+    /// Divide `n` by `d`, forming a quotient `q`. Rounds `q` down towards -infinity.
+    pub fn divFloorQ(q: *Mpz, n: Mpz, d: Mpz) error{DivisionByZero}!void {
+        if (d.isZero()) {
+            @branchHint(.cold);
+            return error.DivisionByZero;
+        }
+        gmp.mpz_fdiv_q(@ptrCast(q), @ptrCast(&n), @ptrCast(&d));
+    }
+
+    /// Divide `n` by `d`, forming a quotient `q` and remainder `r`.
+    /// Rounds `q` down towards -infinity, and `r` will have the same sign to `d`.
+    /// `q` and `r` will satisfy `n=q*d+r`, and `r` will satisfy `0<=abs(r)<abs(d)`.
+    pub fn divFloorR(r: *Mpz, n: Mpz, d: Mpz) error{DivisionByZero}!void {
+        if (d.isZero()) {
+            @branchHint(.cold);
+            return error.DivisionByZero;
+        }
+        gmp.mpz_fdiv_r(@ptrCast(r), @ptrCast(&n), @ptrCast(&d));
+    }
+
+    /// Divide `n` by `d`, forming a quotient `q` and remainder `r`.
+    /// Rounds `q` down towards -infinity, and `r` will have the same sign to `d`.
+    /// `q` and `r` will satisfy `n=q*d+r`, and `r` will satisfy `0<=abs(r)<abs(d)`.
+    /// The same variable cannot be passed for both `q` and `r`, or results will be unpredictable.
+    pub fn divFloorQR(q: *Mpz, r: *Mpz, n: Mpz, d: Mpz) error{DivisionByZero}!void {
+        if (d.isZero()) {
+            @branchHint(.cold);
+            return error.DivisionByZero;
+        }
+        gmp.mpz_fdiv_qr(@ptrCast(q), @ptrCast(r), @ptrCast(&n), @ptrCast(&d));
+    }
+
+    /// Divide `n` by `d`, forming a quotient `q` and remainder `r`.
+    /// Rounds `q` down towards -infinity, and `r` will have the same sign to `d`.
+    /// `q` and `r` will satisfy `n=q*d+r`, and `r` will satisfy `0<=abs(r)<abs(d)`.
+    /// The return value is the absolute value of the remainder.
+    pub fn divFloorQUlong(q: *Mpz, n: Mpz, d: c_ulong) error{DivisionByZero}!c_ulong {
+        if (d == 0) {
+            @branchHint(.cold);
+            return error.DivisionByZero;
+        }
+        return gmp.mpz_fdiv_q_ui(@ptrCast(q), @ptrCast(&n), d);
+    }
+
+    /// Divide `n` by `d`, forming a quotient `q` and remainder `r`.
+    /// Rounds `q` down towards -infinity, and `r` will have the same sign to `d`.
+    /// `q` and `r` will satisfy `n=q*d+r`, and `r` will satisfy `0<=abs(r)<abs(d)`.
+    /// The return value is the absolute value of the remainder.
+    pub fn divFloorRUlong(r: *Mpz, n: Mpz, d: c_ulong) error{DivisionByZero}!c_ulong {
+        if (d == 0) {
+            @branchHint(.cold);
+            return error.DivisionByZero;
+        }
+        return gmp.mpz_fdiv_r_ui(@ptrCast(r), @ptrCast(&n), d);
+    }
+
+    /// Divide `n` by `d`, forming a quotient `q` and remainder `r`.
+    /// Rounds `q` down towards -infinity, and `r` will have the same sign to `d`.
+    /// `q` and `r` will satisfy `n=q*d+r`, and `r` will satisfy `0<=abs(r)<abs(d)`.
+    /// The same variable cannot be passed for both `q` and `r`, or results will be unpredictable.
+    /// The return value is the absolute value of the remainder.
+    pub fn divFloorQRUlong(q: *Mpz, r: *Mpz, n: Mpz, d: c_ulong) error{DivisionByZero}!c_ulong {
+        if (d == 0) {
+            @branchHint(.cold);
+            return error.DivisionByZero;
+        }
+        return gmp.mpz_fdiv_qr_ui(@ptrCast(q), @ptrCast(r), @ptrCast(&n), d);
+    }
+
+    //// Divide `n` by `d`, forming a quotient `q` and remainder `r`.
+    /// Rounds `q` down towards -infinity, and `r` will have the same sign to `d`.
+    /// `q` and `r` will satisfy `n=q*d+r`, and `r` will satisfy `0<=abs(r)<abs(d)`.
+    /// The return value is the absolute value of the remainder.
+    pub fn divFloorUlong(n: Mpz, d: c_ulong) error{DivisionByZero}!c_ulong {
+        if (d == 0) {
+            @branchHint(.cold);
+            return error.DivisionByZero;
+        }
+        return gmp.mpz_fdiv_ui(@ptrCast(&n), d);
+    }
+
+    /// Divide `n` by `2^b`, forming a quotient `q`. Rounds `q` down towards -infinity.
+    /// For positive `n` this is a simple bitwise right shift. For negative `n`, this is
+    /// effectively an arithmetic right shift treating `n` as two’s complement the same
+    /// as the bitwise logical functions do.
+    pub fn divFloorQ2exp(q: *Mpz, n: Mpz, b: BitCountInt) void {
+        gmp.mpz_fdiv_q_2exp(@ptrCast(q), @ptrCast(&n), b);
+    }
+
+    /// Divide `n` by `2^b`, forming a quotient `q` and remainder `r`.
+    /// Rounds `q` down towards -infinity, and `r` will have the same sign to `2^b`.
+    /// `q` and `r` will satisfy `n=q*(2^b)+r`, and `r` will satisfy `0<=abs(r)<abs(2^b)`.
+    /// This function is implemented as a bit mask.
+    pub fn divFloorR2exp(q: *Mpz, n: Mpz, b: BitCountInt) void {
+        gmp.mpz_fdiv_r_2exp(@ptrCast(q), @ptrCast(&n), b);
+    }
+
+    /// Divide `n` by `d`, forming a quotient `q`. Rounds `q` towards 0.
+    pub fn divTruncQ(q: *Mpz, n: Mpz, d: Mpz) error{DivisionByZero}!void {
+        if (d.isZero()) {
+            @branchHint(.cold);
+            return error.DivisionByZero;
+        }
+        gmp.mpz_tdiv_q(@ptrCast(q), @ptrCast(&n), @ptrCast(&d));
+    }
+
+    /// Divide `n` by `d`, forming a quotient `q` and remainder `r`.
+    /// Rounds `q` towards 0, and `r` will have the same sign as `n`.
+    /// `q` and `r` will satisfy `n=q*d+r`, and `r` will satisfy `0<=abs(r)<abs(d)`.
+    pub fn divTruncR(r: *Mpz, n: Mpz, d: Mpz) error{DivisionByZero}!void {
+        if (d.isZero()) {
+            @branchHint(.cold);
+            return error.DivisionByZero;
+        }
+        gmp.mpz_tdiv_r(@ptrCast(r), @ptrCast(&n), @ptrCast(&d));
+    }
+
+    /// Divide `n` by `d`, forming a quotient `q` and remainder `r`.
+    /// Rounds `q` towards 0, and `r` will have the same sign as `n`.
+    /// `q` and `r` will satisfy `n=q*d+r`, and `r` will satisfy `0<=abs(r)<abs(d)`.
+    /// The same variable cannot be passed for both `q` and `r`, or results will be unpredictable.
+    pub fn divTruncQR(q: *Mpz, r: *Mpz, n: Mpz, d: Mpz) error{DivisionByZero}!void {
+        if (d.isZero()) {
+            @branchHint(.cold);
+            return error.DivisionByZero;
+        }
+        gmp.mpz_tdiv_qr(@ptrCast(q), @ptrCast(r), @ptrCast(&n), @ptrCast(&d));
+    }
+
+    /// Divide `n` by `d`, forming a quotient `q` and remainder `r`.
+    /// Rounds `q` towards 0, and `r` will have the same sign as `n`.
+    /// `q` and `r` will satisfy `n=q*d+r`, and `r` will satisfy `0<=abs(r)<abs(d)`.
+    /// The return value is the absolute value of the remainder.
+    pub fn divTruncQUlong(q: *Mpz, n: Mpz, d: c_ulong) error{DivisionByZero}!c_ulong {
+        if (d == 0) {
+            @branchHint(.cold);
+            return error.DivisionByZero;
+        }
+        return gmp.mpz_tdiv_q_ui(@ptrCast(q), @ptrCast(&n), d);
+    }
+
+    /// Divide `n` by `d`, forming a quotient `q` and remainder `r`.
+    /// Rounds `q` towards 0, and `r` will have the same sign as `n`.
+    /// `q` and `r` will satisfy `n=q*d+r`, and `r` will satisfy `0<=abs(r)<abs(d)`.
+    /// The return value is the absolute value of the remainder.
+    pub fn divTruncRUlong(r: *Mpz, n: Mpz, d: c_ulong) error{DivisionByZero}!c_ulong {
+        if (d == 0) {
+            @branchHint(.cold);
+            return error.DivisionByZero;
+        }
+        return gmp.mpz_tdiv_r_ui(@ptrCast(r), @ptrCast(&n), d);
+    }
+
+    /// Divide `n` by `d`, forming a quotient `q` and remainder `r`.
+    /// Rounds `q` towards 0, and `r` will have the same sign as `n`.
+    /// `q` and `r` will satisfy `n=q*d+r`, and `r` will satisfy `0<=abs(r)<abs(d)`.
+    /// The same variable cannot be passed for both `q` and `r`, or results will be unpredictable.
+    /// The return value is the absolute value of the remainder.
+    pub fn divTruncQRUlong(q: *Mpz, r: *Mpz, n: Mpz, d: c_ulong) error{DivisionByZero}!c_ulong {
+        if (d == 0) {
+            @branchHint(.cold);
+            return error.DivisionByZero;
+        }
+        return gmp.mpz_tdiv_qr_ui(@ptrCast(q), @ptrCast(r), @ptrCast(&n), d);
+    }
+
+    //// Divide `n` by `d`, forming a quotient `q` and remainder `r`.
+    /// Rounds `q` towards 0, and `r` will have the same sign as `n`.
+    /// `q` and `r` will satisfy `n=q*d+r`, and `r` will satisfy `0<=abs(r)<abs(d)`.
+    /// The return value is the absolute value of the remainder.
+    pub fn divTruncUlong(n: Mpz, d: c_ulong) error{DivisionByZero}!c_ulong {
+        if (d == 0) {
+            @branchHint(.cold);
+            return error.DivisionByZero;
+        }
+        return gmp.mpz_tdiv_ui(@ptrCast(&n), d);
+    }
+
+    /// Divide `n` by `2^b`, forming a quotient `q`. Rounds `q` towards 0.
+    /// For positive `n` this is a simple bitwise right shift. For negative `n`, this is
+    /// effectively an arithmetic right shift treating `n` as sign and magnitude.
+    pub fn divTruncQ2exp(q: *Mpz, n: Mpz, b: BitCountInt) void {
+        gmp.mpz_tdiv_q_2exp(@ptrCast(q), @ptrCast(&n), b);
+    }
+
+    /// Divide `n` by `2^b`, forming a quotient `q` and remainder `r`.
+    /// Rounds `q` towards 0, and `r` will have the opposite sign to `2^b`.
+    /// `q` and `r` will satisfy `n=q*(2^b)+r`, and `r` will satisfy `0<=abs(r)<abs(2^b)`.
+    /// This function is implemented as a bit mask.
+    pub fn divTruncR2exp(q: *Mpz, n: Mpz, b: BitCountInt) void {
+        gmp.mpz_tdiv_r_2exp(@ptrCast(q), @ptrCast(&n), b);
+    }
+
+    /// Set `self` to `n mod d`.
+    /// The sign of the divisor is ignored; the result is always non-negative.
+    pub fn mod(self: *Mpz, n: Mpz, d: Mpz) error{DivisionByZero}!void {
+        if (d.isZero()) {
+            @branchHint(.cold);
+            return error.DivisionByZero;
+        }
+        gmp.mpz_mod(@ptrCast(self), @ptrCast(&n), @ptrCast(&d));
+    }
+
+    /// Set `self` to `n mod d`.
+    /// The sign of the divisor is ignored; the result is always non-negative.
+    /// This is identical to `divFloorRUlong`, returning the remainder as well as setting `self`.
+    /// See `divFloorUlong` if only the return value is wanted.
+    pub fn modUlong(self: *Mpz, n: Mpz, d: c_ulong) error{DivisionByZero}!c_ulong {
+        if (d == 0) {
+            @branchHint(.cold);
+            return error.DivisionByZero;
+        }
+        return gmp.mpz_mod_ui(@ptrCast(self), @ptrCast(&n), d);
+    }
+
+    /// Set `q` to `n/d`.
+    /// This function produces correct results only when it is known in advance that `d` divides `n`.
+    /// This routine is much faster than the other division functions,
+    /// and is the best choice when exact division is known to occur,
+    /// for example reducing a rational to lowest terms.
+    pub fn divExact(q: *Mpz, n: Mpz, d: Mpz) error{DivisionByZero}!void {
+        if (d.isZero()) {
+            @branchHint(.cold);
+            return error.DivisionByZero;
+        }
+        gmp.mpz_divexact(@ptrCast(q), @ptrCast(&n), @ptrCast(&d));
+    }
+
+    /// Set `q` to `n/d`.
+    /// This function produces correct results only when it is known in advance that `d` divides `n`.
+    /// This routine is much faster than the other division functions,
+    /// and is the best choice when exact division is known to occur,
+    /// for example reducing a rational to lowest terms.
+    pub fn divExactUlong(q: *Mpz, n: Mpz, d: c_ulong) error{DivisionByZero}!void {
+        if (d == 0) {
+            @branchHint(.cold);
+            return error.DivisionByZero;
+        }
+        gmp.mpz_divexact_ui(@ptrCast(q), @ptrCast(&n), d);
+    }
+
+    /// Return `true` if `self` is exactly divisible by `d`.
+    /// `self` is divisible by `d` if there exists an integer `q` satisfying `self = q*d`.
+    /// Unlike the other division functions, `d=0` is accepted and following the rule it
+    /// can be seen that only 0 is considered divisible by 0.
+    pub fn isDivisible(self: Mpz, d: Mpz) bool {
+        return gmp.mpz_divisible_p(@ptrCast(&self), @ptrCast(&d)) != 0;
+    }
+
+    /// Return `true` if `self` is exactly divisible by `d`.
+    /// `self` is divisible by `d` if there exists an integer `q` satisfying `self = q*d`.
+    /// Unlike the other division functions, `d=0` is accepted and following the rule it
+    /// can be seen that only 0 is considered divisible by 0.
+    pub fn isDivisibleUlong(self: Mpz, d: c_ulong) bool {
+        return gmp.mpz_divisible_ui_p(@ptrCast(&self), d) != 0;
+    }
+
+    /// Return `true` if `self` is exactly divisible by `2^b`.
+    /// `self` is divisible by `2^b` if there exists an integer `q` satisfying `n = q*(2^b)`.
+    pub fn isDivisible2exp(self: Mpz, b: BitCountInt) bool {
+        return gmp.mpz_divisible_2exp_p(@ptrCast(&self), b) != 0;
+    }
+
+    /// Return `true` if `self` is congruent to `c modulo d`.
+    /// `self` is congruent to `c mod d` if there exists an integer `q` satisfying `self = c + (q*d)`.
+    /// Unlike the other division functions, `d=0` is accepted and following the rule it
+    /// can be seen that `self` and `c` are considered congruent mod 0 only when exactly equal.
+    pub fn isCongruent(self: Mpz, c: Mpz, d: Mpz) bool {
+        return gmp.mpz_congruent_p(@ptrCast(&self), @ptrCast(&c), @ptrCast(&d)) != 0;
+    }
+
+    /// Return `true` if `self` is congruent to `c modulo d`.
+    /// `self` is congruent to `c mod d` if there exists an integer `q` satisfying `self = c + (q*d)`.
+    /// Unlike the other division functions, `d=0` is accepted and following the rule it
+    /// can be seen that `self` and `c` are considered congruent mod 0 only when exactly equal.
+    pub fn isCongruentUlong(self: Mpz, c: c_ulong, d: c_ulong) bool {
+        return gmp.mpz_congruent_ui_p(@ptrCast(&self), c, d) != 0;
+    }
+
+    /// Return `true` if `self` is congruent to `c modulo (2^b)`.
+    /// `self` is congruent to `c mod (2^b)` if there exists an integer `q` satisfying `self = c + (q*(2^d))`.
+    pub fn isCongruent2exp(self: Mpz, c: Mpz, b: BitCountInt) bool {
+        return gmp.mpz_congruent_2exp_p(@ptrCast(&self), @ptrCast(&c), b) != 0;
     }
 };
