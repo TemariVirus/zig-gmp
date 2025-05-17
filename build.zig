@@ -94,6 +94,7 @@ pub fn build(b: *std.Build) !void {
             "mp_minv_tab.c",
             "mp_dv_tab.c",
             "mp_clz_tab.c",
+            "mp_set_fns.c",
             // TODO: figure out printing interface
             "printf/printf.c",
             "printf/doprnt.c",
