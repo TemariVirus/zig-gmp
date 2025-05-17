@@ -613,4 +613,72 @@ pub const Mpz = extern struct {
     pub fn isCongruent2exp(self: Mpz, c: Mpz, b: BitCountInt) bool {
         return gmp.mpz_congruent_2exp_p(@ptrCast(&self), @ptrCast(&c), b) != 0;
     }
+
+    /// Compare `self` and `other`. Return `.gt` if `self > other`,
+    /// `.gt` if `self = other`, or `.lt` if `self < other`.
+    /// `other` can be an infinity, but results are undefined for a NaN.
+    /// Supported types: `int`, `float`, `Mpz`.
+    pub fn order(self: Mpz, other: anytype) std.math.Order {
+        const T = @TypeOf(other);
+        // Type must be explicit because mpz_cmp_ui and mpz_cmp_si are macros
+        const ptr: [*c]const gmp.__mpz_struct = @ptrCast(&self);
+        const result =
+            switch (@typeInfo(T)) {
+                .int => |info| switch (info.signedness) {
+                    .unsigned => gmp.mpz_cmp_ui(ptr, other),
+                    .signed => gmp.mpz_cmp_si(ptr, other),
+                },
+                .comptime_int => if (other < 0)
+                    gmp.mpz_cmp_si(ptr, other)
+                else
+                    gmp.mpz_cmp_ui(ptr, other),
+                .float, .comptime_float => gmp.mpz_cmp_d(ptr, other),
+                else => switch (T) {
+                    Mpz => gmp.mpz_cmp(ptr, @ptrCast(&other)),
+                    else => @compileError(std.fmt.comptimePrint("Unsupported type '{s}'", .{@typeName(T)})),
+                },
+            };
+        return switch (result) {
+            std.math.minInt(@TypeOf(result))...-1 => .lt,
+            0 => .eq,
+            1...std.math.maxInt(@TypeOf(result)) => .gt,
+        };
+    }
+
+    /// Compare the absolute values of `self` and `other`.
+    /// Return `.gt` if `abs(self) > abs(other)`, `.gt` if `abs(self) = abs(other)`,
+    /// or `.lt` if `abs(self) < abs(other)`.
+    /// `other` can be an infinity, but results are undefined for a NaN.
+    /// Supported types: `unsigned int`, `float`, `Mpz`.
+    pub fn orderAbs(self: Mpz, other: anytype) std.math.Order {
+        const T = @TypeOf(other);
+        const result =
+            switch (@typeInfo(T)) {
+                .int => |info| switch (info.signedness) {
+                    .unsigned => gmp.mpz_cmpabs_ui(@ptrCast(&self), other),
+                    .signed => @compileError("'other' must be an unsigned integer"),
+                },
+                .comptime_int => gmp.mpz_cmpabs_ui(@ptrCast(&self), other),
+                .float, .comptime_float => gmp.mpz_cmpabs_d(@ptrCast(&self), other),
+                else => switch (T) {
+                    Mpz => gmp.mpz_cmpabs(@ptrCast(&self), @ptrCast(&other)),
+                    else => @compileError(std.fmt.comptimePrint("Unsupported type '{s}'", .{@typeName(T)})),
+                },
+            };
+        return switch (result) {
+            std.math.minInt(@TypeOf(result))...-1 => .lt,
+            0 => .eq,
+            1...std.math.maxInt(@TypeOf(result)) => .gt,
+        };
+    }
+
+    /// Return `+1` if `self > 0`, `0` if `self = 0`, and `-1` if `self < 0`.
+    pub fn sign(self: Mpz) i32 {
+        // Own implementation because Zig doesn't translate GMP's macro properly
+        return switch (self._mp_size) {
+            std.math.minInt(@TypeOf(self._mp_size))...-1 => -1,
+            0 => 0,
+            1...std.math.maxInt(@TypeOf(self._mp_size)) => 1,
+        };
+    }
 };

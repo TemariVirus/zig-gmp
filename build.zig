@@ -132,9 +132,10 @@ pub fn build(b: *std.Build) !void {
             "divexact.c",    "dive_ui.c",      "divis.c",
             "divis_ui.c",    "divis_2exp.c",   "cong.c",
             "cong_ui.c",     "cong_2exp.c",    "cmp.c",
-            "cmp_ui.c",
+            "cmp_d.c",       "cmp_si.c",       "cmp_ui.c",
+            "cmpabs.c",      "cmpabs_d.c",     "cmpabs_ui.c",
             //TODO: figure out printing interface
-                 "out_str.c",      "get_str.c",
+            "out_str.c",     "get_str.c",
         },
     });
     gmp.addCSourceFiles(.{
